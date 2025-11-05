@@ -8,13 +8,24 @@ app = FastAPI()
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"])
 async def handle_all_routes(request: Request, path: str):
-    response_data = {"path": path, "method": request.method}  # 新增路径参数
+    response_data = {"path": path, "method": request.method}
 
-    # GET请求处理（保留原有查询参数逻辑）
+    # 获取查询参数
+    query_params = dict(request.query_params) if request.query_params else {}
+
+    # 从查询参数中获取 status_code
+    status_code = 200  # 默认状态码
+    if "status_code" in query_params:
+        try:
+            status_code = int(query_params.pop("status_code"))
+        except (ValueError, TypeError):
+            pass  # 如果转换失败，使用默认状态码
+
+    # GET请求处理
     if request.method == "GET":
-        response_data["query_params"] = dict(request.query_params) if request.query_params else {}
+        response_data["query_params"] = query_params
 
-    # 非GET请求处理（保留原有body处理逻辑）
+    # 非GET请求处理
     if request.method in ["POST", "PUT", "DELETE", "PATCH"]:
         try:
             body = await request.json()
@@ -26,13 +37,13 @@ async def handle_all_routes(request: Request, path: str):
             except:
                 response_data["body"] = {}
 
-    # 保留原有的headers处理逻辑
+    # 处理headers
     response_headers = dict(request.headers)
     headers_to_exclude = ["content-length", "content-encoding", "transfer-encoding"]
     for header in headers_to_exclude:
         response_headers.pop(header, None)
 
-    return JSONResponse(content=response_data, headers=response_headers)
+    return JSONResponse(content=response_data, headers=response_headers, status_code=status_code)
 
 
 if __name__ == "__main__":
