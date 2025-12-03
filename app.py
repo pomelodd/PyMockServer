@@ -1,7 +1,9 @@
 from typing import Union
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.gzip import GZipMiddleware
 import uvicorn
+import asyncio  # 新增导入
 
 app = FastAPI()
 
@@ -20,6 +22,18 @@ async def handle_all_routes(request: Request, path: str):
             status_code = int(query_params.pop("status_code"))
         except (ValueError, TypeError):
             pass  # 如果转换失败，使用默认状态码
+
+    # 新增：从查询参数中获取 delay
+    delay = 0  # 默认延迟为0秒
+    if "delay" in query_params:
+        try:
+            delay = int(query_params.pop("delay"))
+        except (ValueError, TypeError):
+            pass  # 如果转换失败，使用默认延迟
+
+    # 如果有延迟，执行异步等待
+    if delay > 0:
+        await asyncio.sleep(delay)
 
     # GET请求处理
     if request.method == "GET":
@@ -42,6 +56,9 @@ async def handle_all_routes(request: Request, path: str):
     headers_to_exclude = ["content-length", "content-encoding", "transfer-encoding"]
     for header in headers_to_exclude:
         response_headers.pop(header, None)
+
+    # 将 delay 添加到响应数据中
+    response_data["delay"] = delay
 
     return JSONResponse(content=response_data, headers=response_headers, status_code=status_code)
 
